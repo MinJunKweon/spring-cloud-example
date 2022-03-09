@@ -1,10 +1,10 @@
-package dev.minz.productcompositeservice
+package dev.minz.util
 
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest
-class ProductCompositeServiceApplicationTests {
+class UtilApplicationTests {
 
 	@Test
 	fun contextLoads() {

@@ -1,10 +1,10 @@
-package dev.minz.productservice
+package dev.minz.api
 
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest
-class ProductServiceApplicationTests {
+class ApiApplicationTests {
 
 	@Test
 	fun contextLoads() {
