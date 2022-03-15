@@ -1,7 +1,6 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    id("org.springframework.boot") version "2.6.4"
     id("io.spring.dependency-management") version "1.0.11.RELEASE"
     id("org.jetbrains.kotlin.plugin.allopen") version "1.6.10"
     id("org.jlleitschuh.gradle.ktlint") version "10.2.1"
@@ -28,6 +27,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
+}
+
+dependencyManagement {
+    imports { mavenBom("org.springframework.boot:spring-boot-dependencies:2.6.4") }
 }
 
 tasks.withType<KotlinCompile> {

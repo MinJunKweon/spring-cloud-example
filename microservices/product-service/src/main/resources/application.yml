@@ -5,3 +5,10 @@ logging:
   level:
     root: INFO
     dev.minz.microservices: DEBUG
+
+---
+spring:
+  profiles: docker
+
+server:
+  port: 8080
