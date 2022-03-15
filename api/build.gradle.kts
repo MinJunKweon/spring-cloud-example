@@ -19,6 +19,8 @@ repositories {
 dependencies {
     implementation(project(":util"))
 
+    implementation("io.springfox:springfox-swagger2:3.0.0")
+
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")

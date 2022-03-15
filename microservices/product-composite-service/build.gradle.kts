@@ -21,6 +21,8 @@ dependencies {
     implementation(project(":api"))
     implementation(project(":util"))
 
+    implementation("io.springfox:springfox-boot-starter:3.0.0")
+
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
