@@ -7,6 +7,7 @@ plugins {
     id("org.jlleitschuh.gradle.ktlint") version "10.2.1"
     kotlin("jvm") version "1.6.10"
     kotlin("plugin.spring") version "1.6.10"
+    kotlin("kapt") version "1.6.10"
 }
 
 group = "dev.minz.microservices.core.recommendation"
@@ -16,6 +17,8 @@ java.sourceCompatibility = JavaVersion.VERSION_11
 repositories {
     mavenCentral()
 }
+
+val mapstructVersion = "1.4.2.Final"
 
 dependencies {
     implementation(project(":api"))
@@ -28,8 +31,13 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
+    implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
+    implementation("org.mapstruct:mapstruct:$mapstructVersion")
+    kapt("org.mapstruct:mapstruct-processor:$mapstructVersion")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
+    testImplementation("de.flapdoodle.embed:de.flapdoodle.embed.mongo:3.4.5")
 }
 
 tasks.withType<KotlinCompile> {

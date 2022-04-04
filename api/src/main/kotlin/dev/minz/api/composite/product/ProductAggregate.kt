@@ -6,5 +6,5 @@ data class ProductAggregate(
     val weight: Int,
     val recommendations: List<RecommendationSummary>?,
     val reviews: List<ReviewSummary>?,
-    val serviceAddresses: ServiceAddresses,
+    val serviceAddresses: ServiceAddresses?,
 )

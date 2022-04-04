@@ -2,32 +2,49 @@ package dev.minz.microservices.core.review.services
 
 import dev.minz.api.core.review.Review
 import dev.minz.api.core.review.ReviewService
+import dev.minz.microservices.core.review.persistence.ReviewRepository
 import dev.minz.util.exceptions.InvalidInputException
 import dev.minz.util.http.ServiceUtil
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
 class ReviewServiceImpl(
-    private val serviceUtil: ServiceUtil
+    private val repository: ReviewRepository,
+    private val mapper: ReviewMapper,
+    private val serviceUtil: ServiceUtil,
 ) : ReviewService {
     companion object {
         private val LOG = LoggerFactory.getLogger(ReviewServiceImpl::class.java)
     }
 
-    override fun getReviews(productId: Int): List<Review>? {
-        require(productId > 0) { throw InvalidInputException("Invalid productId: $productId") }
-        if (productId == 213) {
-            LOG.debug("No reviews found for productId: $productId")
-            return arrayListOf()
+    override fun createReview(body: Review): Review {
+        val entity = mapper.apiToEntity(body)
+        val newEntity = try {
+            repository.save(entity)
+        } catch (dive: DataIntegrityViolationException) {
+            throw InvalidInputException("Duplicate key, product Id: ${body.productId}, review Id: ${body.reviewId}")
         }
 
-        return arrayListOf(
-            Review(productId, 1, "Author 1", "Subject 1", "Content 1", serviceUtil.serviceAddress),
-            Review(productId, 2, "Author 2", "Subject 2", "Content 2", serviceUtil.serviceAddress),
-            Review(productId, 3, "Author 3", "Subject 3", "Content 3", serviceUtil.serviceAddress),
-        ).also {
-            LOG.debug("/reviews response size: ${it.size}")
-        }
+        LOG.debug("createReview: created a review entity: ${body.productId}/${body.reviewId}")
+        return mapper.entityToApi(newEntity)
+    }
+
+    override fun getReviews(productId: Int): List<Review>? {
+        require(productId > 0) { throw InvalidInputException("Invalid productId: $productId") }
+
+        val entityList = repository.findByProductId(productId)
+        val list = mapper.entityListToApiList(entityList)
+        list.forEach { it.serviceAddress = serviceUtil.serviceAddress }
+
+        LOG.debug("getReviews: response size: ${list.size}")
+
+        return list
+    }
+
+    override fun deleteReviews(productId: Int) {
+        LOG.debug("deleteReviews: tries to delete reviews for the productId: $productId")
+        repository.deleteAll(repository.findByProductId(productId))
     }
 }

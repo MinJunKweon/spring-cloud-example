@@ -46,9 +46,105 @@ class ProductCompositeIntegration(
         SERVICE_URL_FORMAT.format(recommendationServiceHost, recommendationServicePort, "recommendation")
     private val reviewServiceUrl = SERVICE_URL_FORMAT.format(reviewServiceHost, reviewServicePort, "review")
 
+    override fun createProduct(body: Product): Product =
+        runCatchingHttpClientException {
+            checkNotNull(restTemplate.postForObject(productServiceUrl, body, Product::class.java)) {
+                "Product created failed. product id: ${body.productId}"
+            }.also {
+                LOG.debug("Created a product with id: ${it.productId}")
+            }
+        }
+
     override fun getProduct(productId: Int): Product? =
-        try {
+        runCatchingHttpClientException {
             restTemplate.getForObject<Product>("$productServiceUrl/$productId")
+        }
+
+    override fun deleteProduct(productId: Int) =
+        runCatchingHttpClientException {
+            val url = "$productServiceUrl/$productId"
+            LOG.debug("Will call the deleteProduct API on URL: $url")
+            restTemplate.delete(url)
+        }
+
+    override fun createRecommendation(body: Recommendation): Recommendation =
+        runCatchingHttpClientException {
+            LOG.debug("Will post a new recommendation to URL: $recommendationServiceUrl")
+            checkNotNull(restTemplate.postForObject(recommendationServiceUrl, body, Recommendation::class.java)) {
+                "Recommendation created failed. product id: ${body.productId}"
+            }.also {
+                LOG.debug("Created a recommendation with product id: ${it.productId}")
+            }
+        }
+
+    override fun getRecommendations(productId: Int): List<Recommendation>? =
+        runCatching {
+            val url = "$recommendationServiceUrl?productId=$productId"
+            LOG.debug("Will call the getRecommendations API on URL: $url")
+            restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                null,
+                object : ParameterizedTypeReference<List<Recommendation>>() {}
+            ).body.also {
+                LOG.debug("Found ${it?.size} recommendations for a product with id: $productId")
+            }
+        }.getOrElse {
+            LOG.warn("Got an exception while requesting recommendations, return zero recommendations: ${it.message}")
+            emptyList()
+        }
+
+    override fun deleteRecommendations(productId: Int) =
+        runCatchingHttpClientException {
+            val url = "$recommendationServiceUrl?productId=$productId"
+            LOG.debug("Will call the deleteRecommendations API on URL: $url")
+            restTemplate.delete(url)
+        }
+
+    override fun createReview(body: Review): Review =
+        runCatchingHttpClientException {
+            LOG.debug("Will post a new review to URL: $reviewServiceUrl")
+
+            checkNotNull(restTemplate.postForObject(reviewServiceUrl, body, Review::class.java)) {
+                "Review created failed. product id: ${body.productId}"
+            }.also {
+                LOG.debug("Created a review with product id: ${it.productId}")
+            }
+        }
+
+    override fun getReviews(productId: Int): List<Review>? =
+        runCatching {
+            val url = "$reviewServiceUrl?productId=$productId"
+            LOG.debug("Will call the getReviews API on URL: $url")
+            restTemplate.exchange(
+                "$reviewServiceUrl?productId=$productId",
+                HttpMethod.GET,
+                null,
+                object : ParameterizedTypeReference<List<Review>>() {}
+            ).body.also {
+                LOG.debug("Found ${it?.size} reviews for a product with id: $productId")
+            }
+        }.getOrElse {
+            LOG.warn("Got an exception while requesting reviews, return zero reviews: ${it.message}")
+            emptyList()
+        }
+
+    override fun deleteReviews(productId: Int) =
+        runCatchingHttpClientException {
+            val url = "$reviewServiceUrl?productId=$productId"
+            LOG.debug("Will call the deleteReviews API on URL: $url")
+            restTemplate.delete(url)
+        }
+
+    private fun HttpClientErrorException.getErrorMessage(): String {
+        return runCatching {
+            mapper.readValue(responseBodyAsString, HttpErrorInfo::class.java).message
+        }.getOrNull() ?: "${this.message}"
+    }
+
+    private fun <R> runCatchingHttpClientException(block: () -> R) =
+        try {
+            block()
         } catch (ex: HttpClientErrorException) {
             when (ex.statusCode) {
                 HttpStatus.NOT_FOUND -> throw NotFoundException(ex.getErrorMessage())
@@ -60,26 +156,4 @@ class ProductCompositeIntegration(
                 }
             }
         }
-
-    override fun getRecommendations(productId: Int): List<Recommendation>? =
-        restTemplate.exchange(
-            "$recommendationServiceUrl?productId=$productId",
-            HttpMethod.GET,
-            null,
-            object : ParameterizedTypeReference<List<Recommendation>>() {}
-        ).body
-
-    override fun getReviews(productId: Int): List<Review>? =
-        restTemplate.exchange(
-            "$reviewServiceUrl?productId=$productId",
-            HttpMethod.GET,
-            null,
-            object : ParameterizedTypeReference<List<Review>>() {}
-        ).body
-
-    private fun HttpClientErrorException.getErrorMessage(): String {
-        return runCatching {
-            mapper.readValue(responseBodyAsString, HttpErrorInfo::class.java).message
-        }.getOrNull() ?: "${this.message}"
-    }
 }

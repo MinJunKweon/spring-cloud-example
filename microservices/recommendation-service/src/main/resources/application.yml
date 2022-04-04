@@ -3,6 +3,16 @@ server:
   error:
     include-message: always
 
+spring:
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: recommendation-db
+  mongodb:
+    embedded:
+      version: 3.4.5
+
 logging:
   level:
     root: INFO
@@ -11,6 +21,10 @@ logging:
 ---
 spring:
   profiles: docker
+
+  data:
+    mongodb:
+      host: mongodb
 
 server:
   port: 8080

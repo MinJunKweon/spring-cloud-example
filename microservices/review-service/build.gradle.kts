@@ -4,9 +4,11 @@ plugins {
     id("org.springframework.boot") version "2.6.4"
     id("io.spring.dependency-management") version "1.0.11.RELEASE"
     id("org.jetbrains.kotlin.plugin.allopen") version "1.6.10"
+    id("org.jetbrains.kotlin.plugin.jpa") version "1.6.10"
     id("org.jlleitschuh.gradle.ktlint") version "10.2.1"
     kotlin("jvm") version "1.6.10"
     kotlin("plugin.spring") version "1.6.10"
+    kotlin("kapt") version "1.6.10"
 }
 
 group = "dev.minz.microservices.core.review"
@@ -16,6 +18,8 @@ java.sourceCompatibility = JavaVersion.VERSION_11
 repositories {
     mavenCentral()
 }
+
+val mapstructVersion = "1.4.2.Final"
 
 dependencies {
     implementation(project(":api"))
@@ -28,8 +32,14 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa:2.3.2.RELEASE")
+    implementation("mysql:mysql-connector-java")
+    implementation("org.mapstruct:mapstruct:$mapstructVersion")
+    kapt("org.mapstruct:mapstruct-processor:$mapstructVersion")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
+    testImplementation("com.h2database:h2")
 }
 
 tasks.withType<KotlinCompile> {

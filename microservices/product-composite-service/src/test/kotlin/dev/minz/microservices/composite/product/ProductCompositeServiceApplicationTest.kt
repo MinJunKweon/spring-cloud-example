@@ -1,5 +1,8 @@
 package dev.minz.microservices.composite.product
 
+import dev.minz.api.composite.product.ProductAggregate
+import dev.minz.api.composite.product.RecommendationSummary
+import dev.minz.api.composite.product.ReviewSummary
 import dev.minz.api.core.product.Product
 import dev.minz.api.core.recommendation.Recommendation
 import dev.minz.api.core.review.Review
@@ -16,6 +19,8 @@ import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
+import org.springframework.test.web.reactive.server.WebTestClient.BodyContentSpec
+import reactor.core.publisher.Mono
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
@@ -52,14 +57,43 @@ class ProductCompositeServiceApplicationTest {
     }
 
     @Test
+    fun `추천, 리뷰 없는 제품 생성 검증`() {
+        val compositeProduct = ProductAggregate(1, "name", 1, null, null, null)
+        postAndVerifyProduct(compositeProduct, HttpStatus.OK)
+    }
+
+    @Test
+    fun `제품 생성 검증`() {
+        val compositeProduct = ProductAggregate(
+            1,
+            "name",
+            1,
+            listOf(RecommendationSummary(1, "a", 1, "c")),
+            listOf(ReviewSummary(1, "a", "s", "c")),
+            null,
+        )
+        postAndVerifyProduct(compositeProduct, HttpStatus.OK)
+    }
+
+    @Test
+    fun `제품 삭제 검증`() {
+        val compositeProduct = ProductAggregate(
+            1,
+            "name",
+            1,
+            listOf(RecommendationSummary(1, "a", 1, "c")),
+            listOf(ReviewSummary(1, "a", "s", "c")),
+            null,
+        )
+        postAndVerifyProduct(compositeProduct, HttpStatus.OK)
+
+        deleteAndVerifyProduct(compositeProduct.productId, HttpStatus.OK)
+        deleteAndVerifyProduct(compositeProduct.productId, HttpStatus.OK)
+    }
+
+    @Test
     fun `제품 ID 검색 검증`() {
-        client.get()
-            .uri("/product-composite/$PRODUCT_ID_OK")
-            .accept(MediaType.APPLICATION_JSON)
-            .exchange()
-            .expectStatus().isOk
-            .expectHeader().contentType(MediaType.APPLICATION_JSON)
-            .expectBody()
+        getAndVerifyProduct(PRODUCT_ID_OK, HttpStatus.OK)
             .jsonPath("\$.productId").isEqualTo(PRODUCT_ID_OK)
             .jsonPath("\$.recommendations.length()").isEqualTo(1)
             .jsonPath("\$.reviews.length()").isEqualTo(1)
@@ -67,27 +101,40 @@ class ProductCompositeServiceApplicationTest {
 
     @Test
     fun `제품 없는 아이디 검색 검증`() {
-        client.get()
-            .uri("/product-composite/$PRODUCT_ID_NOT_FOUND")
-            .accept(MediaType.APPLICATION_JSON)
-            .exchange()
-            .expectStatus().isNotFound
-            .expectHeader().contentType(MediaType.APPLICATION_JSON)
-            .expectBody()
+        getAndVerifyProduct(PRODUCT_ID_NOT_FOUND, HttpStatus.NOT_FOUND)
             .jsonPath("\$.path").isEqualTo("/product-composite/$PRODUCT_ID_NOT_FOUND")
             .jsonPath("\$.message").isEqualTo("NOT FOUND: $PRODUCT_ID_NOT_FOUND")
     }
 
     @Test
     fun `잘못된 제품 아이디 입수 검증`() {
-        client.get()
-            .uri("/product-composite/$PRODUCT_ID_INVALID")
-            .accept(MediaType.APPLICATION_JSON)
-            .exchange()
-            .expectStatus().isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY)
-            .expectHeader().contentType(MediaType.APPLICATION_JSON)
-            .expectBody()
+        getAndVerifyProduct(PRODUCT_ID_INVALID, HttpStatus.UNPROCESSABLE_ENTITY)
             .jsonPath("\$.path").isEqualTo("/product-composite/$PRODUCT_ID_INVALID")
             .jsonPath("\$.message").isEqualTo("INVALID: $PRODUCT_ID_INVALID")
+    }
+
+    private fun getAndVerifyProduct(productId: Int, expectedStatus: HttpStatus): BodyContentSpec {
+        return client.get()
+            .uri("/product-composite/$productId")
+            .accept(MediaType.APPLICATION_JSON)
+            .exchange()
+            .expectStatus().isEqualTo(expectedStatus)
+            .expectHeader().contentType(MediaType.APPLICATION_JSON)
+            .expectBody()
+    }
+
+    private fun postAndVerifyProduct(compositeProduct: ProductAggregate, expectedStatus: HttpStatus) {
+        client.post()
+            .uri("/product-composite")
+            .body(Mono.just<Any>(compositeProduct), ProductAggregate::class.java)
+            .exchange()
+            .expectStatus().isEqualTo(expectedStatus)
+    }
+
+    private fun deleteAndVerifyProduct(productId: Int, expectedStatus: HttpStatus) {
+        client.delete()
+            .uri("/product-composite/$productId")
+            .exchange()
+            .expectStatus().isEqualTo(expectedStatus)
     }
 }
