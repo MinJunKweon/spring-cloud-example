@@ -11,6 +11,7 @@ import dev.minz.api.core.review.Review
 import dev.minz.util.http.ServiceUtil
 import org.slf4j.LoggerFactory
 import org.springframework.web.bind.annotation.RestController
+import reactor.core.publisher.Mono
 
 @RestController
 class ProductCompositeServiceImpl(
@@ -40,13 +41,24 @@ class ProductCompositeServiceImpl(
         LOG.debug("createCompositeProduct: composite entities created for productId: ${body.productId}")
     }
 
-    override fun getCompositeProduct(productId: Int): ProductAggregate {
+    override fun getCompositeProduct(productId: Int): Mono<ProductAggregate> {
         LOG.debug("getCompositeProduct: lookup a product aggregate for productId: $productId")
         val product = requireNotNull(integration.getProduct(productId)) { "No product found for productId: $productId" }
-        val recommendations = integration.getRecommendations(productId)
-        val reviews = integration.getReviews(productId)
+        val recommendations: Mono<List<Recommendation>> = integration.getRecommendations(productId).collectList()
+        val reviews: Mono<List<Review>> = integration.getReviews(productId).collectList()
         LOG.debug("getCompositeProduct: aggregate entity found for productId: $productId")
-        return createProductAggregate(product, recommendations, reviews, serviceUtil.serviceAddress)
+        return Mono.zip(
+            { values ->
+                val productValue = values[0] as Product
+                val recommendationList = (values[1] as List<*>).map { it as Recommendation }
+                val reviewList = (values[2] as List<*>).map { it as Review }
+
+                createProductAggregate(productValue, recommendationList, reviewList, serviceUtil.serviceAddress)
+            },
+            product,
+            recommendations,
+            reviews
+        )
     }
 
     override fun deleteCompositeProduct(productId: Int) {

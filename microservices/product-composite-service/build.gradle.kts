@@ -31,6 +31,10 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
+    implementation("org.springframework.cloud:spring-cloud-starter-stream-kafka:3.2.2")
+    implementation("org.springframework.cloud:spring-cloud-starter-stream-rabbit:3.2.2")
+    implementation("org.springframework.cloud:spring-cloud-function-kotlin:3.2.2")
+    testImplementation("org.springframework.cloud:spring-cloud-stream-test-support")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
 }

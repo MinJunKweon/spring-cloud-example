@@ -7,22 +7,26 @@ import dev.minz.api.core.recommendation.Recommendation
 import dev.minz.api.core.recommendation.RecommendationService
 import dev.minz.api.core.review.Review
 import dev.minz.api.core.review.ReviewService
+import dev.minz.api.event.Event
 import dev.minz.util.exceptions.InvalidInputException
 import dev.minz.util.exceptions.NotFoundException
 import dev.minz.util.http.HttpErrorInfo
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.core.ParameterizedTypeReference
-import org.springframework.http.HttpMethod
+import org.springframework.cloud.stream.function.StreamBridge
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Component
-import org.springframework.web.client.HttpClientErrorException
-import org.springframework.web.client.RestTemplate
-import org.springframework.web.client.getForObject
+import org.springframework.web.reactive.function.client.WebClient
+import org.springframework.web.reactive.function.client.WebClientResponseException
+import org.springframework.web.reactive.function.client.bodyToFlux
+import org.springframework.web.reactive.function.client.bodyToMono
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 @Component
 class ProductCompositeIntegration(
-    private val restTemplate: RestTemplate,
+    private val streamBridge: StreamBridge,
+    webClientBuilder: WebClient.Builder,
     private val mapper: ObjectMapper,
 
     @Value("\${app.product-service.host}") productServiceHost: String,
@@ -41,119 +45,88 @@ class ProductCompositeIntegration(
         private val LOG = LoggerFactory.getLogger(ProductCompositeIntegration::class.java)
     }
 
+    private val webClient = webClientBuilder.build()
+
     private val productServiceUrl = SERVICE_URL_FORMAT.format(productServiceHost, productServicePort, "product")
     private val recommendationServiceUrl =
         SERVICE_URL_FORMAT.format(recommendationServiceHost, recommendationServicePort, "recommendation")
     private val reviewServiceUrl = SERVICE_URL_FORMAT.format(reviewServiceHost, reviewServicePort, "review")
 
-    override fun createProduct(body: Product): Product =
-        runCatchingHttpClientException {
-            checkNotNull(restTemplate.postForObject(productServiceUrl, body, Product::class.java)) {
-                "Product created failed. product id: ${body.productId}"
-            }.also {
-                LOG.debug("Created a product with id: ${it.productId}")
-            }
-        }
+    override fun createProduct(body: Product): Product {
+        streamBridge.send("product-in-0", Event(Event.Type.CREATE, body.productId, body))
+        return body
+    }
 
-    override fun getProduct(productId: Int): Product? =
-        runCatchingHttpClientException {
-            restTemplate.getForObject<Product>("$productServiceUrl/$productId")
-        }
+    override fun getProduct(productId: Int): Mono<Product> {
+        val url = "$productServiceUrl/product/$productId"
+        LOG.debug("Will call the getProduct API on URL: $url")
+        return webClient.get()
+            .uri(url)
+            .retrieve()
+            .bodyToMono<Product>()
+            .log()
+            .onErrorMap(WebClientResponseException::class.java) { convertException(it) }
+    }
 
-    override fun deleteProduct(productId: Int) =
-        runCatchingHttpClientException {
-            val url = "$productServiceUrl/$productId"
-            LOG.debug("Will call the deleteProduct API on URL: $url")
-            restTemplate.delete(url)
-        }
+    override fun deleteProduct(productId: Int) {
+        streamBridge.send("product-in-0", Event(Event.Type.DELETE, productId, null))
+    }
 
-    override fun createRecommendation(body: Recommendation): Recommendation =
-        runCatchingHttpClientException {
-            LOG.debug("Will post a new recommendation to URL: $recommendationServiceUrl")
-            checkNotNull(restTemplate.postForObject(recommendationServiceUrl, body, Recommendation::class.java)) {
-                "Recommendation created failed. product id: ${body.productId}"
-            }.also {
-                LOG.debug("Created a recommendation with product id: ${it.productId}")
-            }
-        }
+    override fun createRecommendation(body: Recommendation): Recommendation {
+        streamBridge.send("recommendation-in-0", Event(Event.Type.CREATE, body.productId, body))
+        return body
+    }
 
-    override fun getRecommendations(productId: Int): List<Recommendation>? =
-        runCatching {
-            val url = "$recommendationServiceUrl?productId=$productId"
-            LOG.debug("Will call the getRecommendations API on URL: $url")
-            restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                null,
-                object : ParameterizedTypeReference<List<Recommendation>>() {}
-            ).body.also {
-                LOG.debug("Found ${it?.size} recommendations for a product with id: $productId")
-            }
-        }.getOrElse {
-            LOG.warn("Got an exception while requesting recommendations, return zero recommendations: ${it.message}")
-            emptyList()
-        }
+    override fun getRecommendations(productId: Int): Flux<Recommendation> {
+        val url = "$recommendationServiceUrl/recommendation?productId=$productId"
+        LOG.debug("Will call the getRecommendations API on URL: $url")
+        return webClient.get()
+            .uri(url)
+            .retrieve()
+            .bodyToFlux<Recommendation>()
+            .log()
+            .onErrorMap(WebClientResponseException::class.java) { convertException(it) }
+    }
 
-    override fun deleteRecommendations(productId: Int) =
-        runCatchingHttpClientException {
-            val url = "$recommendationServiceUrl?productId=$productId"
-            LOG.debug("Will call the deleteRecommendations API on URL: $url")
-            restTemplate.delete(url)
-        }
+    override fun deleteRecommendations(productId: Int) {
+        streamBridge.send("recommendation-in-0", Event(Event.Type.DELETE, productId, null))
+    }
 
-    override fun createReview(body: Review): Review =
-        runCatchingHttpClientException {
-            LOG.debug("Will post a new review to URL: $reviewServiceUrl")
+    override fun createReview(body: Review): Review {
+        streamBridge.send("review-in-0", Event(Event.Type.CREATE, body.productId, body))
+        return body
+    }
 
-            checkNotNull(restTemplate.postForObject(reviewServiceUrl, body, Review::class.java)) {
-                "Review created failed. product id: ${body.productId}"
-            }.also {
-                LOG.debug("Created a review with product id: ${it.productId}")
-            }
-        }
+    override fun getReviews(productId: Int): Flux<Review> {
+        val url = "$reviewServiceUrl/review?productId=$productId"
+        LOG.debug("Will call the getReviews API on URL: $url")
+        return webClient.get()
+            .uri(url)
+            .retrieve()
+            .bodyToFlux<Review>()
+            .log()
+            .onErrorMap(WebClientResponseException::class.java) { convertException(it) }
+    }
 
-    override fun getReviews(productId: Int): List<Review>? =
-        runCatching {
-            val url = "$reviewServiceUrl?productId=$productId"
-            LOG.debug("Will call the getReviews API on URL: $url")
-            restTemplate.exchange(
-                "$reviewServiceUrl?productId=$productId",
-                HttpMethod.GET,
-                null,
-                object : ParameterizedTypeReference<List<Review>>() {}
-            ).body.also {
-                LOG.debug("Found ${it?.size} reviews for a product with id: $productId")
-            }
-        }.getOrElse {
-            LOG.warn("Got an exception while requesting reviews, return zero reviews: ${it.message}")
-            emptyList()
-        }
+    override fun deleteReviews(productId: Int) {
+        streamBridge.send("review-in-0", Event(Event.Type.DELETE, productId, null))
+    }
 
-    override fun deleteReviews(productId: Int) =
-        runCatchingHttpClientException {
-            val url = "$reviewServiceUrl?productId=$productId"
-            LOG.debug("Will call the deleteReviews API on URL: $url")
-            restTemplate.delete(url)
-        }
-
-    private fun HttpClientErrorException.getErrorMessage(): String {
+    private fun WebClientResponseException.getErrorMessage(): String {
         return runCatching {
             mapper.readValue(responseBodyAsString, HttpErrorInfo::class.java).message
         }.getOrNull() ?: "${this.message}"
     }
 
-    private fun <R> runCatchingHttpClientException(block: () -> R) =
-        try {
-            block()
-        } catch (ex: HttpClientErrorException) {
-            when (ex.statusCode) {
-                HttpStatus.NOT_FOUND -> throw NotFoundException(ex.getErrorMessage())
-                HttpStatus.UNPROCESSABLE_ENTITY -> throw InvalidInputException(ex.getErrorMessage())
-                else -> {
-                    LOG.warn("Got a unexpected HTTP error: {}, will rethrow it", ex.statusCode)
-                    LOG.warn("Error body: {}", ex.responseBodyAsString)
-                    throw ex
-                }
+    private fun convertException(ex: WebClientResponseException): Throwable {
+        val message = ex.getErrorMessage()
+        return when (ex.statusCode) {
+            HttpStatus.NOT_FOUND -> NotFoundException(message)
+            HttpStatus.UNPROCESSABLE_ENTITY -> InvalidInputException(message)
+            else -> ex.also {
+                LOG.warn("Got a unexpected HTTP error: ${ex.statusCode}, will rethrow it")
+                LOG.warn("Error body: ${ex.responseBodyAsString}")
             }
         }
+    }
 }

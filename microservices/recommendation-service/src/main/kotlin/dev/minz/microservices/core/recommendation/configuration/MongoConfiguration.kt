@@ -4,23 +4,23 @@ import dev.minz.microservices.core.recommendation.persistence.RecommendationEnti
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.event.ContextRefreshedEvent
 import org.springframework.context.event.EventListener
-import org.springframework.data.mongodb.core.MongoOperations
+import org.springframework.data.mongodb.core.ReactiveMongoOperations
 import org.springframework.data.mongodb.core.index.IndexDefinition
-import org.springframework.data.mongodb.core.index.IndexOperations
 import org.springframework.data.mongodb.core.index.IndexResolver
 import org.springframework.data.mongodb.core.index.MongoPersistentEntityIndexResolver
+import org.springframework.data.mongodb.core.index.ReactiveIndexOperations
 
 @Configuration
 class MongoConfiguration(
-    private val mongoTemplate: MongoOperations,
+    private val mongoTemplate: ReactiveMongoOperations,
 ) {
 
     @EventListener(ContextRefreshedEvent::class)
     fun initIndicesAfterStartup() {
         val mappingContext = mongoTemplate.converter.mappingContext
         val resolver: IndexResolver = MongoPersistentEntityIndexResolver(mappingContext)
-        val indexOps: IndexOperations = mongoTemplate.indexOps(RecommendationEntity::class.java)
+        val indexOps: ReactiveIndexOperations = mongoTemplate.indexOps(RecommendationEntity::class.java)
         resolver.resolveIndexFor(RecommendationEntity::class.java)
-            .forEach { e: IndexDefinition? -> indexOps.ensureIndex(e!!) }
+            .forEach { e: IndexDefinition? -> indexOps.ensureIndex(e!!).block() }
     }
 }

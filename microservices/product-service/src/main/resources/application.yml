@@ -2,6 +2,17 @@ server:
   port: 7001
 
 spring:
+  cloud:
+    function:
+      definition: process
+    stream:
+      function:
+        bindings:
+          process-in-0: input
+      bindings:
+        input:
+          group: product
+          destination: product
   data:
     mongodb:
       host: localhost

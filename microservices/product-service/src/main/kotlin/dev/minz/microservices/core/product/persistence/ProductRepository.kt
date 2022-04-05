@@ -1,7 +1,8 @@
 package dev.minz.microservices.core.product.persistence
 
-import org.springframework.data.repository.PagingAndSortingRepository
+import org.springframework.data.mongodb.repository.ReactiveMongoRepository
+import reactor.core.publisher.Mono
 
-interface ProductRepository : PagingAndSortingRepository<ProductEntity, String> {
-    fun findByProductId(productId: Int): ProductEntity?
+interface ProductRepository : ReactiveMongoRepository<ProductEntity, String> {
+    fun findByProductId(productId: Int): Mono<ProductEntity>
 }

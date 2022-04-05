@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import reactor.core.publisher.Mono
 
 @Api(description = "REST API for composite product information.")
 interface ProductCompositeService {
@@ -56,7 +57,7 @@ interface ProductCompositeService {
         ]
     )
     @GetMapping(value = ["/product-composite/{productId}"], produces = [APPLICATION_JSON])
-    fun getCompositeProduct(@PathVariable productId: Int): ProductAggregate
+    fun getCompositeProduct(@PathVariable productId: Int): Mono<ProductAggregate>
 
     @ApiOperation(
         value = "\${api.product-composite.delete-composite-product.description}",

@@ -4,6 +4,17 @@ server:
     include-message: always
 
 spring:
+  cloud:
+    function:
+      definition: process
+    stream:
+      function:
+        bindings:
+          process-in-0: input
+      bindings:
+        input:
+          group: recommendation
+          destination: recommendation
   data:
     mongodb:
       host: localhost
