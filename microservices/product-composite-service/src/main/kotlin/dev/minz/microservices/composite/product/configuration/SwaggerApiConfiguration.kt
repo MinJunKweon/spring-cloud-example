@@ -3,6 +3,7 @@ package dev.minz.microservices.composite.product.configuration
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.messaging.Message
 import org.springframework.web.bind.annotation.RequestMethod.GET
 import springfox.documentation.builders.PathSelectors
 import springfox.documentation.builders.RequestHandlerSelectors.basePackage
@@ -54,4 +55,7 @@ class SwaggerApiConfiguration(
                     /* ktlint-enable no-multi-spaces */
                 )
             )
+
+    @Bean
+    fun springFoxSupplier(): () -> Message<String>? = { null }
 }

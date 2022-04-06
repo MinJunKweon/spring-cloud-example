@@ -5,7 +5,6 @@ import dev.minz.api.core.recommendation.RecommendationService
 import dev.minz.api.event.Event
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.messaging.Message
 
 @Configuration
 class RecommendationListener(
@@ -13,11 +12,10 @@ class RecommendationListener(
 ) {
 
     @Bean
-    fun process(): (Message<Event<Int, Recommendation>>) -> Unit = {
-        val payload = it.payload
-        when (payload.eventType) {
-            Event.Type.CREATE -> recommendationService.createRecommendation(payload.data)
-            Event.Type.DELETE -> recommendationService.deleteRecommendations(payload.key)
+    fun process(): (Event<Int, Recommendation>) -> Unit = {
+        when (it.eventType) {
+            Event.Type.CREATE -> recommendationService.createRecommendation(it.data)
+            Event.Type.DELETE -> recommendationService.deleteRecommendations(it.key)
         }
     }
 }

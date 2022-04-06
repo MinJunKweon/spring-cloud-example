@@ -65,6 +65,32 @@ logging:
     root: INFO
     se.magnus: DEBUG
 
+spring.cloud.stream:
+  defaultBinder: kafka
+  bindings:
+    output-products:
+      destination: products
+      producer:
+        required-groups: auditGroup
+        partition-key-expression: payload.key
+        partition-count: 1
+    output-recommendations:
+      destination: recommendations
+      producer:
+        required-groups: auditGroup
+        partition-key-expression: payload.key
+        partition-count: 1
+    output-reviews:
+      destination: reviews
+      producer:
+        required-groups: auditGroup
+        partition-key-expression: payload.key
+        partition-count: 1
+
+spring.cloud.stream.kafka.binder:
+  brokers: 127.0.0.1
+  defaultBrokerPort: 9092
+
 ---
 spring:
   profiles: docker
@@ -82,3 +108,6 @@ app:
   review-service:
     host: review
     port: 8080
+
+spring.cloud.stream.kafka.binder:
+  brokers: kafka

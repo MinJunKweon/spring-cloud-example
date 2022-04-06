@@ -11,8 +11,19 @@ spring:
           process-in-0: input
       bindings:
         input:
-          group: product
-          destination: product
+          consumer:
+            paratitoned: true
+            instanceCount: 1
+            instanceIndex: 0
+          group: products
+          destination: products
+      default-binder: kafka
+      kafka:
+        bindings.input.consumer:
+          enableDlq: true
+        binder:
+          configuration:
+            auto.offset.reset: earliest
   data:
     mongodb:
       host: localhost
@@ -27,6 +38,9 @@ logging:
     root: INFO
     dev.minz.microservices: DEBUG
 
+management.endpoint.health.show-details: "ALWAYS"
+management.endpoints.web.exposure.include: "*"
+
 ---
 spring:
   profiles: docker
@@ -37,3 +51,5 @@ spring:
 
 server:
   port: 8080
+
+spring.cloud.stream.kafka.binder.brokers: kafka

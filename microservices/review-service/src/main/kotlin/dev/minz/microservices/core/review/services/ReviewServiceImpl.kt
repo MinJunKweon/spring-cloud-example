@@ -56,7 +56,7 @@ class ReviewServiceImpl(
     }
 
     override fun deleteReviews(productId: Int) {
-        require(productId > 0) { throw InvalidInputException("Invalid productId: ${body.productId}") }
+        require(productId > 0) { throw InvalidInputException("Invalid productId: $productId") }
 
         LOG.debug("deleteReviews: tries to delete reviews for the productId: $productId")
         repository.deleteAll(repository.findByProductId(productId))

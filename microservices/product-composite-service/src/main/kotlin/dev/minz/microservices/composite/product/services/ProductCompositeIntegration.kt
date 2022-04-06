@@ -53,7 +53,7 @@ class ProductCompositeIntegration(
     private val reviewServiceUrl = SERVICE_URL_FORMAT.format(reviewServiceHost, reviewServicePort, "review")
 
     override fun createProduct(body: Product): Product {
-        streamBridge.send("product-in-0", Event(Event.Type.CREATE, body.productId, body))
+        streamBridge.send("products", Event(Event.Type.CREATE, body.productId, body))
         return body
     }
 
@@ -69,11 +69,11 @@ class ProductCompositeIntegration(
     }
 
     override fun deleteProduct(productId: Int) {
-        streamBridge.send("product-in-0", Event(Event.Type.DELETE, productId, null))
+        streamBridge.send("products", Event(Event.Type.DELETE, productId, null))
     }
 
     override fun createRecommendation(body: Recommendation): Recommendation {
-        streamBridge.send("recommendation-in-0", Event(Event.Type.CREATE, body.productId, body))
+        streamBridge.send("recommendations", Event(Event.Type.CREATE, body.productId, body))
         return body
     }
 
@@ -89,11 +89,11 @@ class ProductCompositeIntegration(
     }
 
     override fun deleteRecommendations(productId: Int) {
-        streamBridge.send("recommendation-in-0", Event(Event.Type.DELETE, productId, null))
+        streamBridge.send("recommendations", Event(Event.Type.DELETE, productId, null))
     }
 
     override fun createReview(body: Review): Review {
-        streamBridge.send("review-in-0", Event(Event.Type.CREATE, body.productId, body))
+        streamBridge.send("reviews", Event(Event.Type.CREATE, body.productId, body))
         return body
     }
 
@@ -109,7 +109,7 @@ class ProductCompositeIntegration(
     }
 
     override fun deleteReviews(productId: Int) {
-        streamBridge.send("review-in-0", Event(Event.Type.DELETE, productId, null))
+        streamBridge.send("reviews", Event(Event.Type.DELETE, productId, null))
     }
 
     private fun WebClientResponseException.getErrorMessage(): String {

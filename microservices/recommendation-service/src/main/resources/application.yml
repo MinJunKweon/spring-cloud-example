@@ -13,8 +13,19 @@ spring:
           process-in-0: input
       bindings:
         input:
-          group: recommendation
-          destination: recommendation
+          consumer:
+            paratitoned: true
+            instanceCount: 1
+            instanceIndex: 0
+          group: recommendations
+          destination: recommendations
+      default-binder: kafka
+      kafka:
+        bindings.input.consumer:
+          enableDlq: true
+        binder:
+          configuration:
+            auto.offset.reset: earliest
   data:
     mongodb:
       host: localhost
@@ -39,3 +50,5 @@ spring:
 
 server:
   port: 8080
+
+spring.cloud.stream.kafka.binder.brokers: kafka
