@@ -1,10 +1,13 @@
 package dev.minz.microservices.core.review
 
 import dev.minz.api.core.review.Review
+import dev.minz.api.core.review.ReviewService
 import dev.minz.microservices.core.review.persistence.ReviewRepository
+import dev.minz.util.exceptions.InvalidInputException
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment
@@ -12,7 +15,6 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.test.web.reactive.server.WebTestClient.BodyContentSpec
-import reactor.core.publisher.Mono
 
 @SpringBootTest(
     webEnvironment = WebEnvironment.RANDOM_PORT,
@@ -20,14 +22,11 @@ import reactor.core.publisher.Mono
 )
 class ReviewServiceApplicationTest {
 
-    companion object {
-        private const val PRODUCT_ID_OK = 1
-        private const val PRODUCT_ID_NOT_FOUND = 213
-        private const val PRODUCT_ID_NEGATIVE = -1
-    }
-
     @Autowired
     private lateinit var client: WebTestClient
+
+    @Autowired
+    private lateinit var reviewService: ReviewService
 
     @Autowired
     private lateinit var repository: ReviewRepository
@@ -39,48 +38,44 @@ class ReviewServiceApplicationTest {
 
     @Test
     fun `제품 아이디로 리뷰 검색 검증`() {
-        Assertions.assertEquals(0, repository.findByProductId(PRODUCT_ID_OK).size)
+        Assertions.assertEquals(0, repository.findByProductId(1).size)
 
-        postAndVerifyReview(PRODUCT_ID_OK, 1, HttpStatus.OK)
-        postAndVerifyReview(PRODUCT_ID_OK, 2, HttpStatus.OK)
-        postAndVerifyReview(PRODUCT_ID_OK, 3, HttpStatus.OK)
+        reviewService.createReview(createReview(1, 1))
+        reviewService.createReview(createReview(1, 2))
+        reviewService.createReview(createReview(1, 3))
 
-        Assertions.assertEquals(3, repository.findByProductId(PRODUCT_ID_OK).size)
+        Assertions.assertEquals(3, repository.findByProductId(1).size)
 
-        getAndVerifyReviewsByProductId(PRODUCT_ID_OK, HttpStatus.OK)
+        getAndVerifyReviewsByProductId(1, HttpStatus.OK)
             .jsonPath("\$.length()").isEqualTo(3)
-            .jsonPath("\$[2].productId").isEqualTo(PRODUCT_ID_OK)
+            .jsonPath("\$[2].productId").isEqualTo(1)
             .jsonPath("\$[2].reviewId").isEqualTo(3)
     }
 
     @Test
     fun `중복 삽입 검증`() {
-        val reviewId = 1
+        val review = createReview(1, 1)
         Assertions.assertEquals(0, repository.count())
-
-        postAndVerifyReview(PRODUCT_ID_OK, reviewId, HttpStatus.OK)
-            .jsonPath("\$.productId").isEqualTo(PRODUCT_ID_OK)
-            .jsonPath("\$.reviewId").isEqualTo(reviewId)
-
+        reviewService.createReview(review)
         Assertions.assertEquals(1, repository.count())
 
-        postAndVerifyReview(PRODUCT_ID_OK, reviewId, HttpStatus.UNPROCESSABLE_ENTITY)
-            .jsonPath("\$.path").isEqualTo("/review")
-            .jsonPath("\$.message").isEqualTo("Duplicate key, product Id: $PRODUCT_ID_OK, review Id: $reviewId")
+        assertThrows<InvalidInputException> {
+            reviewService.createReview(review)
+        }
 
         Assertions.assertEquals(1, repository.count())
     }
 
     @Test
     fun `리뷰 삭제 검증`() {
-        val reviewId = 1
-        postAndVerifyReview(PRODUCT_ID_OK, reviewId, HttpStatus.OK)
-        Assertions.assertEquals(1, repository.findByProductId(PRODUCT_ID_OK).size)
+        val review = createReview(1, 1)
+        reviewService.createReview(review)
+        Assertions.assertEquals(1, repository.findByProductId(1).size)
 
-        deleteAndVerifyReviewsByProductId(PRODUCT_ID_OK, HttpStatus.OK)
-        Assertions.assertEquals(0, repository.findByProductId(PRODUCT_ID_OK).size)
+        reviewService.deleteReviews(1)
+        Assertions.assertEquals(0, repository.findByProductId(1).size)
 
-        deleteAndVerifyReviewsByProductId(PRODUCT_ID_OK, HttpStatus.OK)
+        reviewService.deleteReviews(1)
     }
 
     @Test
@@ -105,9 +100,9 @@ class ReviewServiceApplicationTest {
 
     @Test
     fun `제품 아이디 음수 검증`() {
-        getAndVerifyReviewsByProductId("?productId=$PRODUCT_ID_NEGATIVE", HttpStatus.UNPROCESSABLE_ENTITY)
+        getAndVerifyReviewsByProductId("?productId=-1", HttpStatus.UNPROCESSABLE_ENTITY)
             .jsonPath("\$.path").isEqualTo("/review")
-            .jsonPath("\$.message").isEqualTo("Invalid productId: $PRODUCT_ID_NEGATIVE")
+            .jsonPath("\$.message").isEqualTo("Invalid productId: -1")
     }
 
     private fun getAndVerifyReviewsByProductId(productId: Int, expectedStatus: HttpStatus): BodyContentSpec {
@@ -124,27 +119,9 @@ class ReviewServiceApplicationTest {
             .expectBody()
     }
 
-    private fun postAndVerifyReview(productId: Int, reviewId: Int, expectedStatus: HttpStatus): BodyContentSpec {
-        val review = Review(
+    private fun createReview(productId: Int, reviewId: Int) =
+        Review(
             productId, reviewId,
             "Author $reviewId", "Subject $reviewId", "Content $reviewId", "SA"
         )
-        return client.post()
-            .uri("/review")
-            .body(Mono.just(review), Review::class.java)
-            .accept(MediaType.APPLICATION_JSON)
-            .exchange()
-            .expectStatus().isEqualTo(expectedStatus)
-            .expectHeader().contentType(MediaType.APPLICATION_JSON)
-            .expectBody()
-    }
-
-    private fun deleteAndVerifyReviewsByProductId(productId: Int, expectedStatus: HttpStatus): BodyContentSpec {
-        return client.delete()
-            .uri("/review?productId=$productId")
-            .accept(MediaType.APPLICATION_JSON)
-            .exchange()
-            .expectStatus().isEqualTo(expectedStatus)
-            .expectBody()
-    }
 }

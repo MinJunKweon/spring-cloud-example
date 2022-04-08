@@ -20,6 +20,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.test.web.reactive.server.WebTestClient.BodyContentSpec
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -44,11 +45,11 @@ class ProductCompositeServiceApplicationTest {
         val mockReview = Review(PRODUCT_ID_OK, 1, "author", "subject", "content", "mock-address")
 
         `when`(compositeIntegration.getProduct(PRODUCT_ID_OK))
-            .thenReturn(Product(PRODUCT_ID_OK, "name", 1, "mock-address"))
+            .thenReturn(Mono.just(Product(PRODUCT_ID_OK, "name", 1, "mock-address")))
         `when`(compositeIntegration.getRecommendations(PRODUCT_ID_OK))
-            .thenReturn(listOf(mockRecommendation))
+            .thenReturn(Flux.fromIterable(listOf(mockRecommendation)))
         `when`(compositeIntegration.getReviews(PRODUCT_ID_OK))
-            .thenReturn(listOf(mockReview))
+            .thenReturn(Flux.fromIterable(listOf(mockReview)))
 
         `when`(compositeIntegration.getProduct(PRODUCT_ID_NOT_FOUND))
             .thenThrow(NotFoundException("NOT FOUND: $PRODUCT_ID_NOT_FOUND"))

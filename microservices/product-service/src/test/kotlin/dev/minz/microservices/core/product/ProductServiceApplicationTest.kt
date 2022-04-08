@@ -1,26 +1,25 @@
 package dev.minz.microservices.core.product
 
 import dev.minz.api.core.product.Product
+import dev.minz.api.core.product.ProductService
 import dev.minz.microservices.core.product.persistence.ProductRepository
+import dev.minz.util.exceptions.InvalidInputException
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.test.web.reactive.server.WebTestClient.BodyContentSpec
-import reactor.core.publisher.Mono
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = ["spring.data.mongodb.port: 0"]
+)
 class ProductServiceApplicationTest {
-
-    companion object {
-        private const val PRODUCT_ID_OK = 1
-        private const val PRODUCT_ID_NOT_FOUND = 13
-        private const val PRODUCT_ID_NEGATIVE = -1
-    }
 
     @Autowired
     private lateinit var client: WebTestClient
@@ -28,39 +27,43 @@ class ProductServiceApplicationTest {
     @Autowired
     private lateinit var repository: ProductRepository
 
+    @Autowired
+    private lateinit var productService: ProductService
+
     @BeforeEach
     fun setupDb() {
-        repository.deleteAll()
+        repository.deleteAll().block()
     }
 
     @Test
     fun `제품 아이디로 검색 검증`() {
-        postAndVerifyProduct(PRODUCT_ID_OK, HttpStatus.OK)
+        productService.createProduct(createProduct(1))
+        Assertions.assertTrue(repository.findByProductId(1).block() != null)
 
-        Assertions.assertTrue(repository.findByProductId(PRODUCT_ID_OK) != null)
-        getAndVerifyProduct(PRODUCT_ID_OK, HttpStatus.OK)
-            .jsonPath("\$.productId").isEqualTo(PRODUCT_ID_OK)
+        getAndVerifyProduct(1, HttpStatus.OK)
+            .jsonPath("\$.productId").isEqualTo(1)
     }
 
     @Test
     fun `중복 제품 검증`() {
-        postAndVerifyProduct(PRODUCT_ID_OK, HttpStatus.OK)
-        Assertions.assertTrue(repository.findByProductId(PRODUCT_ID_OK) != null)
+        val product = createProduct(1)
+        productService.createProduct(product)
+        Assertions.assertTrue(repository.findByProductId(1).block() != null)
 
-        postAndVerifyProduct(PRODUCT_ID_OK, HttpStatus.UNPROCESSABLE_ENTITY)
-            .jsonPath("\$.path").isEqualTo("/product")
-            .jsonPath("\$.message").isEqualTo("Duplicate key, product id: $PRODUCT_ID_OK")
+        assertThrows<InvalidInputException> {
+            productService.createProduct(product)
+        }
     }
 
     @Test
     fun `제품 삭제 검증`() {
-        postAndVerifyProduct(PRODUCT_ID_OK, HttpStatus.OK)
-        Assertions.assertTrue(repository.findByProductId(PRODUCT_ID_OK) != null)
+        productService.createProduct(createProduct(1))
+        Assertions.assertTrue(repository.findByProductId(1).block() != null)
 
-        deleteAndVerifyProduct(PRODUCT_ID_OK, HttpStatus.OK)
-        Assertions.assertFalse(repository.findByProductId(PRODUCT_ID_OK) != null)
+        productService.deleteProduct(1)
+        Assertions.assertFalse(repository.findByProductId(1).block() != null)
 
-        deleteAndVerifyProduct(PRODUCT_ID_OK, HttpStatus.OK)
+        productService.deleteProduct(1)
     }
 
     @Test
@@ -71,16 +74,16 @@ class ProductServiceApplicationTest {
 
     @Test
     fun `제품 아이디 없는 경우 검증`() {
-        getAndVerifyProduct(PRODUCT_ID_NOT_FOUND, HttpStatus.NOT_FOUND)
-            .jsonPath("\$.path").isEqualTo("/product/$PRODUCT_ID_NOT_FOUND")
-            .jsonPath("\$.message").isEqualTo("No product found for productId: $PRODUCT_ID_NOT_FOUND")
+        getAndVerifyProduct(13, HttpStatus.NOT_FOUND)
+            .jsonPath("\$.path").isEqualTo("/product/13")
+            .jsonPath("\$.message").isEqualTo("No product found for productId: 13")
     }
 
     @Test
     fun `제품 아이디 음수 입수 검증`() {
-        getAndVerifyProduct(PRODUCT_ID_NEGATIVE, HttpStatus.UNPROCESSABLE_ENTITY)
-            .jsonPath("\$.path").isEqualTo("/product/$PRODUCT_ID_NEGATIVE")
-            .jsonPath("\$.message").isEqualTo("Invalid productId: $PRODUCT_ID_NEGATIVE")
+        getAndVerifyProduct(-1, HttpStatus.UNPROCESSABLE_ENTITY)
+            .jsonPath("\$.path").isEqualTo("/product/-1")
+            .jsonPath("\$.message").isEqualTo("Invalid productId: -1")
     }
 
     private fun getAndVerifyProduct(productId: Int, expectedStatus: HttpStatus): BodyContentSpec {
@@ -97,24 +100,6 @@ class ProductServiceApplicationTest {
             .expectBody()
     }
 
-    private fun postAndVerifyProduct(productId: Int, expectedStatus: HttpStatus): BodyContentSpec {
-        val product = Product(productId, "Name $productId", productId, "SA")
-        return client.post()
-            .uri("/product")
-            .body(Mono.just(product), Product::class.java)
-            .accept(MediaType.APPLICATION_JSON)
-            .exchange()
-            .expectStatus().isEqualTo(expectedStatus)
-            .expectHeader().contentType(MediaType.APPLICATION_JSON)
-            .expectBody()
-    }
-
-    private fun deleteAndVerifyProduct(productId: Int, expectedStatus: HttpStatus): BodyContentSpec {
-        return client.delete()
-            .uri("/product/$productId")
-            .accept(MediaType.APPLICATION_JSON)
-            .exchange()
-            .expectStatus().isEqualTo(expectedStatus)
-            .expectBody()
-    }
+    private fun createProduct(productId: Int) =
+        Product(productId, "Name $productId", productId, "SA")
 }
