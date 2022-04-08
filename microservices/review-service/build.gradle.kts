@@ -21,6 +21,8 @@ repositories {
 
 val mapstructVersion = "1.4.2.Final"
 
+extra["springCloudVersion"] = "2021.0.1"
+
 dependencies {
     implementation(project(":api"))
     implementation(project(":util"))
@@ -39,9 +41,16 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-starter-stream-kafka:3.2.2")
     implementation("org.springframework.cloud:spring-cloud-starter-stream-rabbit:3.2.2")
     implementation("org.springframework.cloud:spring-cloud-function-kotlin:3.2.2")
+    implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("com.h2database:h2")
+}
+
+dependencyManagement {
+    imports {
+        mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
+    }
 }
 
 tasks.withType<KotlinCompile> {

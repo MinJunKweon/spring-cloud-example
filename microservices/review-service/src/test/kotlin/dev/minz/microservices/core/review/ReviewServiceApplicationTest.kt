@@ -18,7 +18,7 @@ import org.springframework.test.web.reactive.server.WebTestClient.BodyContentSpe
 
 @SpringBootTest(
     webEnvironment = WebEnvironment.RANDOM_PORT,
-    properties = ["spring.datasource.url=jdbc:h2:mem:review-db"]
+    properties = ["spring.datasource.url=jdbc:h2:mem:review-db", "eureka.client.enabled=false"]
 )
 class ReviewServiceApplicationTest {
 

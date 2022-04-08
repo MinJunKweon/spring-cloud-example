@@ -17,7 +17,10 @@ import org.springframework.test.web.reactive.server.WebTestClient.BodyContentSpe
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["spring.data.mongodb.port: 0"]
+    properties = [
+        "spring.data.mongodb.port: 0",
+        "eureka.client.enabled=false",
+    ]
 )
 class ProductServiceApplicationTest {
 
