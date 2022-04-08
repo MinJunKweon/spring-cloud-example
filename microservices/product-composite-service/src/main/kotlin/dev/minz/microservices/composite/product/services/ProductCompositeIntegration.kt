@@ -12,7 +12,7 @@ import dev.minz.util.exceptions.InvalidInputException
 import dev.minz.util.exceptions.NotFoundException
 import dev.minz.util.http.HttpErrorInfo
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.cloud.stream.function.StreamBridge
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Component
@@ -26,31 +26,19 @@ import reactor.core.publisher.Mono
 @Component
 class ProductCompositeIntegration(
     private val streamBridge: StreamBridge,
+    @Qualifier("loadBalancedWebClientBuilder")
     webClientBuilder: WebClient.Builder,
     private val mapper: ObjectMapper,
-
-    @Value("\${app.product-service.host}") productServiceHost: String,
-    @Value("\${app.product-service.port}") productServicePort: Int,
-
-    @Value("\${app.recommendation-service.host}") recommendationServiceHost: String,
-    @Value("\${app.recommendation-service.port}") recommendationServicePort: Int,
-
-    @Value("\${app.review-service.host}") reviewServiceHost: String,
-    @Value("\${app.review-service.port}") reviewServicePort: Int,
 ) : ProductService, RecommendationService, ReviewService {
     companion object {
-        /* sample: SERVICE_URL_FORMAT.format(host, port, serviceName) */
-        private const val SERVICE_URL_FORMAT = "http://%s:%d/%s"
-
         private val LOG = LoggerFactory.getLogger(ProductCompositeIntegration::class.java)
     }
 
     private val webClient = webClientBuilder.build()
 
-    private val productServiceUrl = SERVICE_URL_FORMAT.format(productServiceHost, productServicePort, "product")
-    private val recommendationServiceUrl =
-        SERVICE_URL_FORMAT.format(recommendationServiceHost, recommendationServicePort, "recommendation")
-    private val reviewServiceUrl = SERVICE_URL_FORMAT.format(reviewServiceHost, reviewServicePort, "review")
+    private val productServiceUrl = "http://product"
+    private val recommendationServiceUrl = "http://recommendation"
+    private val reviewServiceUrl = "http://review"
 
     override fun createProduct(body: Product): Product {
         streamBridge.send("products", Event(Event.Type.CREATE, body.productId, body))

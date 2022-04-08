@@ -3,6 +3,8 @@ server:
   error:
     include-message: always
 
+spring.application.name: product-composite
+
 api:
   common:
     version: 1.0.0
@@ -65,6 +67,16 @@ logging:
     root: INFO
     se.magnus: DEBUG
 
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+    initialInstanceInfoReplicationIntervalSeconds: 5
+    registryFetchIntervalSeconds: 5
+  instance:
+    leaseRenewalIntervalInSeconds: 5
+    leaseExpirationDurationInSeconds: 5
+
 spring.cloud.stream:
   defaultBinder: kafka
   bindings:
@@ -95,8 +107,7 @@ spring.cloud.stream.kafka.binder:
 spring:
   profiles: docker
 
-server:
-  port: 8080
+server.port: 8080
 
 app:
   product-service:
@@ -108,6 +119,8 @@ app:
   review-service:
     host: review
     port: 8080
+
+eureka.client.serviceUrl.defaultZone: "http://eureka:8761/eureka"
 
 spring.cloud.stream.kafka.binder:
   brokers: kafka
