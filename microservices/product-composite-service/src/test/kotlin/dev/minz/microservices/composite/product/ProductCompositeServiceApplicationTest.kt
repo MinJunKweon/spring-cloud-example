@@ -1,5 +1,6 @@
 package dev.minz.microservices.composite.product
 
+import com.ninjasquad.springmockk.MockkBean
 import dev.minz.api.composite.product.ProductAggregate
 import dev.minz.api.composite.product.RecommendationSummary
 import dev.minz.api.composite.product.ReviewSummary
@@ -9,18 +10,18 @@ import dev.minz.api.core.review.Review
 import dev.minz.microservices.composite.product.services.ProductCompositeIntegration
 import dev.minz.util.exceptions.InvalidInputException
 import dev.minz.util.exceptions.NotFoundException
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.justRun
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.test.web.reactive.server.WebTestClient.BodyContentSpec
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -36,25 +37,34 @@ class ProductCompositeServiceApplicationTest {
     @Autowired
     private lateinit var client: WebTestClient
 
-    @MockBean
+    @MockkBean
     private lateinit var compositeIntegration: ProductCompositeIntegration
 
     @BeforeEach
     fun setUp() {
+        val mockProduct = Product(PRODUCT_ID_OK, "name", 1, "mock-address")
         val mockRecommendation = Recommendation(PRODUCT_ID_OK, 1, "author", 1, "content", "mock-address")
         val mockReview = Review(PRODUCT_ID_OK, 1, "author", "subject", "content", "mock-address")
 
-        `when`(compositeIntegration.getProduct(PRODUCT_ID_OK))
-            .thenReturn(Mono.just(Product(PRODUCT_ID_OK, "name", 1, "mock-address")))
-        `when`(compositeIntegration.getRecommendations(PRODUCT_ID_OK))
-            .thenReturn(Flux.fromIterable(listOf(mockRecommendation)))
-        `when`(compositeIntegration.getReviews(PRODUCT_ID_OK))
-            .thenReturn(Flux.fromIterable(listOf(mockReview)))
+        coEvery { compositeIntegration.getProduct(PRODUCT_ID_OK) } returns mockProduct
+        coEvery { compositeIntegration.getRecommendations(PRODUCT_ID_OK) } returns listOf(mockRecommendation)
+        coEvery { compositeIntegration.getReviews(PRODUCT_ID_OK) } returns listOf(mockReview)
 
-        `when`(compositeIntegration.getProduct(PRODUCT_ID_NOT_FOUND))
-            .thenThrow(NotFoundException("NOT FOUND: $PRODUCT_ID_NOT_FOUND"))
-        `when`(compositeIntegration.getProduct(PRODUCT_ID_INVALID))
-            .thenThrow(InvalidInputException("INVALID: $PRODUCT_ID_INVALID"))
+        coEvery { compositeIntegration.getProduct(PRODUCT_ID_NOT_FOUND) } throws
+            NotFoundException("NOT FOUND: $PRODUCT_ID_NOT_FOUND")
+        coEvery { compositeIntegration.getProduct(PRODUCT_ID_INVALID) } throws
+            InvalidInputException("INVALID: $PRODUCT_ID_INVALID")
+
+        val product = Product(1, "name", 1, null)
+        val recommendation = Recommendation(1, 1, "a", 1, "c", null)
+        val review = Review(1, 1, "a", "s", "c", null)
+        every { compositeIntegration.createProduct(product) } returns product
+        every { compositeIntegration.createRecommendation(recommendation) } returns recommendation
+        every { compositeIntegration.createReview(review) } returns review
+
+        justRun { compositeIntegration.deleteProduct(1) }
+        justRun { compositeIntegration.deleteRecommendations(1) }
+        justRun { compositeIntegration.deleteReviews(1) }
     }
 
     @Test

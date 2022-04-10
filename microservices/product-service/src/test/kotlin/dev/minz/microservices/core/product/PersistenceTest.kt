@@ -2,8 +2,10 @@ package dev.minz.microservices.core.product
 
 import dev.minz.microservices.core.product.persistence.ProductEntity
 import dev.minz.microservices.core.product.persistence.ProductRepository
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest
@@ -11,7 +13,8 @@ import org.springframework.dao.DuplicateKeyException
 import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.junit.jupiter.SpringExtension
-import reactor.test.StepVerifier
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 @ExtendWith(SpringExtension::class)
 @DataMongoTest
@@ -23,88 +26,80 @@ class PersistenceTest {
     private lateinit var savedEntity: ProductEntity
 
     @BeforeEach
-    fun setupDb() {
-        StepVerifier.create(repository.deleteAll()).verifyComplete()
+    fun setupDb() = runBlocking {
+        repository.deleteAll()
 
         val entity = ProductEntity(1, "n", 1)
-        StepVerifier.create(repository.save(entity))
-            .expectNextMatches {
-                savedEntity = it
-                savedEntity == entity
-            }
-            .verifyComplete()
+        savedEntity = repository.save(entity)
     }
 
     @Test
-    fun create() {
+    fun create() = runBlocking {
         val newEntity = ProductEntity(2, "n", 2)
-        StepVerifier.create(repository.save(newEntity))
-            .expectNextMatches { newEntity.productId == it.productId }
-            .verifyComplete()
+        val result = repository.save(newEntity)
+        assertEquals(newEntity.productId, result.productId)
 
-        StepVerifier.create(repository.findById(newEntity.id!!))
-            .expectNextMatches { it == newEntity }
-            .verifyComplete()
+        assertEquals(newEntity, repository.findById(newEntity.id!!))
 
-        StepVerifier.create(repository.count())
-            .expectNext(2L)
-            .verifyComplete()
+        assertEquals(2L, repository.count())
     }
 
     @Test
-    fun update() {
+    fun update() = runBlocking {
         savedEntity.name = "n2"
-        StepVerifier.create(repository.save(savedEntity))
-            .expectNextMatches { savedEntity.name == it.name }
-            .verifyComplete()
+        repository.save(savedEntity).also {
+            assertEquals(savedEntity.name, it.name)
+        }
 
-        StepVerifier.create(repository.findById(savedEntity.id!!))
-            .expectNextMatches { it.version == 1 && it.name == "n2" }
-            .verifyComplete()
+        repository.findById(savedEntity.id!!)!!.let {
+            assertEquals(1, it.version)
+            assertEquals("n2", it.name)
+        }
     }
 
     @Test
-    fun delete() {
-        StepVerifier.create(repository.delete(savedEntity)).verifyComplete()
-        StepVerifier.create(repository.existsById(savedEntity.id!!)).expectNext(false).verifyComplete()
+    fun delete() = runBlocking {
+        repository.delete(savedEntity)
+        assertFalse { repository.existsById(savedEntity.id!!) }
     }
 
     @Test
-    fun getByProductId() {
-        StepVerifier.create(repository.findByProductId(savedEntity.productId))
-            .expectNextMatches { it == savedEntity }
-            .verifyComplete()
+    fun getByProductId() = runBlocking {
+        val actualResult = repository.findByProductId(savedEntity.productId)
+
+        assertEquals(savedEntity, actualResult)
     }
 
     @Test
-    fun duplicateError() {
+    fun duplicateError() = runBlocking {
         val entity = ProductEntity(savedEntity.productId, "n", 1)
-        StepVerifier.create(repository.save(entity))
-            .expectError(DuplicateKeyException::class.java)
-            .verify()
+        val actualException = assertThrows<DuplicateKeyException> {
+            repository.save(entity)
+        }
+        assertEquals(DuplicateKeyException::class, actualException::class)
     }
 
     @Test
-    fun optimisticLockError() {
-
+    fun optimisticLockError() = runBlocking {
         // Store the saved entity in two separate entity objects
-        val entity1 = repository.findById(savedEntity.id!!).block()
-        val entity2 = repository.findById(savedEntity.id!!).block()
+        val entity1 = repository.findById(savedEntity.id!!)
+        val entity2 = repository.findById(savedEntity.id!!)
 
         // Update the entity using the first entity object
         entity1?.name = "n1"
-        repository.save(entity1!!).block()
+        repository.save(entity1!!)
 
         //  Update the entity using the second entity object.
         // This should fail since the second entity now holds a old version number, i.e. a Optimistic Lock Error
         entity2?.name = "n2"
-        StepVerifier.create(repository.save(entity2!!))
-            .expectError(OptimisticLockingFailureException::class.java)
-            .verify()
+        assertThrows<OptimisticLockingFailureException> {
+            repository.save(entity2!!)
+        }
 
         // Get the updated entity from the database and verify its new sate
-        StepVerifier.create(repository.findById(savedEntity.id!!))
-            .expectNextMatches { it.version == 1 && it.name == "n1" }
-            .verifyComplete()
+        val actualResult = repository.findById(savedEntity.id!!)
+
+        assertEquals(1, actualResult?.version)
+        assertEquals("n1", actualResult?.name)
     }
 }

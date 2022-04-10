@@ -4,7 +4,6 @@ import dev.minz.util.constant.APPLICATION_JSON
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
-import reactor.core.publisher.Mono
 
 interface ProductService {
 
@@ -14,7 +13,7 @@ interface ProductService {
         value = ["/product/{productId}"],
         produces = [APPLICATION_JSON],
     )
-    fun getProduct(@PathVariable productId: Int): Mono<Product>
+    suspend fun getProduct(@PathVariable productId: Int): Product
 
     fun deleteProduct(@PathVariable productId: Int)
 }

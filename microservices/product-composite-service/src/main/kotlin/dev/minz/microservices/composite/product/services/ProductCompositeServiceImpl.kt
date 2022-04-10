@@ -11,7 +11,6 @@ import dev.minz.api.core.review.Review
 import dev.minz.util.http.ServiceUtil
 import org.slf4j.LoggerFactory
 import org.springframework.web.bind.annotation.RestController
-import reactor.core.publisher.Mono
 
 @RestController
 class ProductCompositeServiceImpl(
@@ -22,7 +21,7 @@ class ProductCompositeServiceImpl(
         private val LOG = LoggerFactory.getLogger(ProductCompositeServiceImpl::class.java)
     }
 
-    override fun createCompositeProduct(body: ProductAggregate) {
+    override suspend fun createCompositeProduct(body: ProductAggregate) {
         LOG.debug("createCompositeProduct: creates a new composite entity for productId: ${body.productId}")
 
         val product = Product(body.productId, body.name, body.weight, null)
@@ -41,27 +40,16 @@ class ProductCompositeServiceImpl(
         LOG.debug("createCompositeProduct: composite entities created for productId: ${body.productId}")
     }
 
-    override fun getCompositeProduct(productId: Int): Mono<ProductAggregate> {
+    override suspend fun getCompositeProduct(productId: Int): ProductAggregate {
         LOG.debug("getCompositeProduct: lookup a product aggregate for productId: $productId")
         val product = requireNotNull(integration.getProduct(productId)) { "No product found for productId: $productId" }
-        val recommendations: Mono<List<Recommendation>> = integration.getRecommendations(productId).collectList()
-        val reviews: Mono<List<Review>> = integration.getReviews(productId).collectList()
+        val recommendations = integration.getRecommendations(productId)
+        val reviews = integration.getReviews(productId)
         LOG.debug("getCompositeProduct: aggregate entity found for productId: $productId")
-        return Mono.zip(
-            { values ->
-                val productValue = values[0] as Product
-                val recommendationList = (values[1] as List<*>).map { it as Recommendation }
-                val reviewList = (values[2] as List<*>).map { it as Review }
-
-                createProductAggregate(productValue, recommendationList, reviewList, serviceUtil.serviceAddress)
-            },
-            product,
-            recommendations,
-            reviews
-        )
+        return createProductAggregate(product, recommendations, reviews, serviceUtil.serviceAddress)
     }
 
-    override fun deleteCompositeProduct(productId: Int) {
+    override suspend fun deleteCompositeProduct(productId: Int) {
         LOG.debug("deleteCompositeProduct: Deletes a product aggregate for productId: $productId")
         integration.deleteProduct(productId)
         integration.deleteRecommendations(productId)

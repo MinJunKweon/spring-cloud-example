@@ -11,6 +11,10 @@ import dev.minz.api.event.Event
 import dev.minz.util.exceptions.InvalidInputException
 import dev.minz.util.exceptions.NotFoundException
 import dev.minz.util.http.HttpErrorInfo
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.single
+import kotlinx.coroutines.flow.toList
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.cloud.stream.function.StreamBridge
@@ -18,10 +22,8 @@ import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.WebClientResponseException
-import org.springframework.web.reactive.function.client.bodyToFlux
-import org.springframework.web.reactive.function.client.bodyToMono
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
+import org.springframework.web.reactive.function.client.bodyToFlow
+import kotlin.reflect.KClass
 
 @Component
 class ProductCompositeIntegration(
@@ -45,15 +47,15 @@ class ProductCompositeIntegration(
         return body
     }
 
-    override fun getProduct(productId: Int): Mono<Product> {
+    override suspend fun getProduct(productId: Int): Product {
         val url = "$productServiceUrl/product/$productId"
         LOG.debug("Will call the getProduct API on URL: $url")
         return webClient.get()
             .uri(url)
             .retrieve()
-            .bodyToMono<Product>()
-            .log()
-            .onErrorMap(WebClientResponseException::class.java) { convertException(it) }
+            .bodyToFlow<Product>()
+            .onErrorMap(WebClientResponseException::class) { convertException(it) }
+            .single()
     }
 
     override fun deleteProduct(productId: Int) {
@@ -65,15 +67,15 @@ class ProductCompositeIntegration(
         return body
     }
 
-    override fun getRecommendations(productId: Int): Flux<Recommendation> {
+    override suspend fun getRecommendations(productId: Int): List<Recommendation> {
         val url = "$recommendationServiceUrl/recommendation?productId=$productId"
         LOG.debug("Will call the getRecommendations API on URL: $url")
         return webClient.get()
             .uri(url)
             .retrieve()
-            .bodyToFlux<Recommendation>()
-            .log()
-            .onErrorMap(WebClientResponseException::class.java) { convertException(it) }
+            .bodyToFlow<Recommendation>()
+            .onErrorMap(WebClientResponseException::class) { convertException(it) }
+            .toList()
     }
 
     override fun deleteRecommendations(productId: Int) {
@@ -85,15 +87,15 @@ class ProductCompositeIntegration(
         return body
     }
 
-    override fun getReviews(productId: Int): Flux<Review> {
+    override suspend fun getReviews(productId: Int): List<Review> {
         val url = "$reviewServiceUrl/review?productId=$productId"
         LOG.debug("Will call the getReviews API on URL: $url")
         return webClient.get()
             .uri(url)
             .retrieve()
-            .bodyToFlux<Review>()
-            .log()
-            .onErrorMap(WebClientResponseException::class.java) { convertException(it) }
+            .bodyToFlow<Review>()
+            .onErrorMap(WebClientResponseException::class) { convertException(it) }
+            .toList()
     }
 
     override fun deleteReviews(productId: Int) {
@@ -105,6 +107,17 @@ class ProductCompositeIntegration(
             mapper.readValue(responseBodyAsString, HttpErrorInfo::class.java).message
         }.getOrNull() ?: "${this.message}"
     }
+
+    private inline fun <reified E : RuntimeException, T> Flow<T>.onErrorMap(
+        e: KClass<E>,
+        crossinline block: (E) -> Throwable,
+    ) =
+        catch {
+            throw when (it) {
+                is E -> block(it)
+                else -> it
+            }
+        }
 
     private fun convertException(ex: WebClientResponseException): Throwable {
         val message = ex.getErrorMessage()

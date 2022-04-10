@@ -5,10 +5,10 @@ import dev.minz.api.core.recommendation.RecommendationService
 import dev.minz.microservices.core.recommendation.persistence.RecommendationRepository
 import dev.minz.util.exceptions.InvalidInputException
 import dev.minz.util.http.ServiceUtil
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.web.bind.annotation.RestController
-import reactor.core.publisher.Flux
 
 @RestController
 class RecommendationServiceImpl(
@@ -22,33 +22,34 @@ class RecommendationServiceImpl(
 
     override fun createRecommendation(body: Recommendation): Recommendation {
         val entity = mapper.apiToEntity(body)
-        val savedRecommendation = repository.save(entity)
-            .log()
-            .onErrorMap(DuplicateKeyException::class.java) {
-                InvalidInputException(
+        val savedRecommendation = runBlocking {
+            val result = try {
+                repository.save(entity)
+            } catch (e: DuplicateKeyException) {
+                throw InvalidInputException(
                     "Duplicate key, product Id: ${body.productId}, recommendation Id : ${body.recommendationId}"
                 )
             }
-            .map { mapper.entityToApi(it) }
-            .block()
-        return checkNotNull(savedRecommendation) { "Recommendation must be not null. Product Id: ${body.productId}" }
+            mapper.entityToApi(result)
+        }
+        return savedRecommendation
     }
 
-    override fun getRecommendations(productId: Int): Flux<Recommendation> {
+    override suspend fun getRecommendations(productId: Int): List<Recommendation> {
         require(productId > 0) { throw InvalidInputException("Invalid productId: $productId") }
 
-        return repository.findByProductId(productId)
-            .log()
-            .map { mapper.entityToApi(it) }
-            .map {
-                it.serviceAddress = serviceUtil.serviceAddress
-                it
+        return repository.findByProductId(productId).map {
+            mapper.entityToApi(it).apply {
+                serviceAddress = serviceUtil.serviceAddress
             }
+        }
     }
 
     override fun deleteRecommendations(productId: Int) {
         require(productId > 0) { throw InvalidInputException("Invalid productId: $productId") }
         LOG.debug("deleteRecommendations: tries to delete recommendations for the product with productId: $productId")
-        repository.deleteAll(repository.findByProductId(productId)).block()
+        runBlocking {
+            repository.deleteAll(repository.findByProductId(productId))
+        }
     }
 }
