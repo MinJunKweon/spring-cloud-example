@@ -1,8 +1,7 @@
 package dev.minz.microservices.core.recommendation.persistence
 
-import org.springframework.data.mongodb.repository.ReactiveMongoRepository
-import reactor.core.publisher.Flux
+import org.springframework.data.repository.kotlin.CoroutineCrudRepository
 
-interface RecommendationRepository : ReactiveMongoRepository<RecommendationEntity, String> {
-    fun findByProductId(productId: Int): Flux<RecommendationEntity>
+interface RecommendationRepository : CoroutineCrudRepository<RecommendationEntity, String> {
+    suspend fun findByProductId(productId: Int): List<RecommendationEntity>
 }

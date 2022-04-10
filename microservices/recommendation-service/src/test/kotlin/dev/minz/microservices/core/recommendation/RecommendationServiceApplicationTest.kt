@@ -4,6 +4,7 @@ import dev.minz.api.core.recommendation.Recommendation
 import dev.minz.api.core.recommendation.RecommendationService
 import dev.minz.microservices.core.recommendation.persistence.RecommendationRepository
 import dev.minz.util.exceptions.InvalidInputException
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -15,6 +16,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.test.web.reactive.server.WebTestClient.BodyContentSpec
+import kotlin.test.assertEquals
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -36,16 +38,16 @@ class RecommendationServiceApplicationTest {
     private lateinit var repository: RecommendationRepository
 
     @BeforeEach
-    fun setupDb() {
-        repository.deleteAll().block()
+    fun setupDb() = runBlocking {
+        repository.deleteAll()
     }
 
     @Test
-    fun `제품 아이디에 따른 추천 검색 검증`() {
+    fun `제품 아이디에 따른 추천 검색 검증`() = runBlocking {
         recommendationService.createRecommendation(createRecommendation(1, 1))
         recommendationService.createRecommendation(createRecommendation(1, 2))
         recommendationService.createRecommendation(createRecommendation(1, 3))
-        Assertions.assertEquals(3, repository.findByProductId(1).count().block())
+        assertEquals(3, repository.findByProductId(1).count())
 
         getAndVerifyRecommendationsByProductId(1, HttpStatus.OK)
             .jsonPath("\$.length()").isEqualTo(3)
@@ -54,26 +56,26 @@ class RecommendationServiceApplicationTest {
     }
 
     @Test
-    fun `중복 엔티티 검증`() {
+    fun `중복 엔티티 검증`() = runBlocking {
         val recommendation = createRecommendation(1, 1)
         recommendationService.createRecommendation(recommendation)
-        Assertions.assertEquals(1, repository.count().block())
+        Assertions.assertEquals(1, repository.count())
 
         assertThrows<InvalidInputException> {
             recommendationService.createRecommendation(recommendation)
         }
 
-        Assertions.assertEquals(1, repository.count().block())
+        assertEquals(1, repository.count())
     }
 
     @Test
-    fun `추천 삭제 검증`() {
+    fun `추천 삭제 검증`() = runBlocking {
         val recommendation = createRecommendation(1, 1)
         recommendationService.createRecommendation(recommendation)
-        Assertions.assertEquals(1, repository.findByProductId(1).count().block())
+        assertEquals(1, repository.findByProductId(1).count())
 
         recommendationService.deleteRecommendations(1)
-        Assertions.assertEquals(0, repository.findByProductId(1).count().block())
+        assertEquals(0, repository.findByProductId(1).count())
 
         recommendationService.deleteRecommendations(1)
     }

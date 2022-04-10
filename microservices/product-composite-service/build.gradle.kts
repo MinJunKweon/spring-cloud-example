@@ -37,7 +37,11 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-function-kotlin:3.2.2")
     implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
     testImplementation("org.springframework.cloud:spring-cloud-stream-test-support:3.2.2")
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-test") {
+        exclude(module = "mockito-core")
+    }
+    testImplementation("io.mockk:mockk:1.12.3")
+    testImplementation("com.ninja-squad:springmockk:3.1.1")
     testImplementation("io.projectreactor:reactor-test")
 }
 
