@@ -9,7 +9,7 @@ plugins {
     kotlin("plugin.spring") version "1.6.10"
 }
 
-group = "dev.minz.microservices.composite.product"
+group = "dev.minz.springcloud"
 version = "0.0.1-SNAPSHOT"
 java.sourceCompatibility = JavaVersion.VERSION_11
 
@@ -20,29 +20,16 @@ repositories {
 extra["springCloudVersion"] = "2021.0.1"
 
 dependencies {
-    implementation(project(":api"))
-    implementation(project(":util"))
-
-    implementation("io.springfox:springfox-boot-starter:3.0.0")
-
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springframework.boot:spring-boot-starter-webflux")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
-    implementation("org.springframework.cloud:spring-cloud-starter-stream-kafka:3.2.2")
-    implementation("org.springframework.cloud:spring-cloud-starter-stream-rabbit:3.2.2")
-    implementation("org.springframework.cloud:spring-cloud-function-kotlin:3.2.2")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.cloud:spring-cloud-starter-gateway")
     implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
-    testImplementation("org.springframework.cloud:spring-cloud-stream-test-support:3.2.2")
-    testImplementation("org.springframework.boot:spring-boot-starter-test") {
-        exclude(module = "mockito-core")
-    }
-    testImplementation("io.mockk:mockk:1.12.3")
-    testImplementation("com.ninja-squad:springmockk:3.1.1")
-    testImplementation("io.projectreactor:reactor-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-webflux")
+    testImplementation(kotlin("test"))
 }
 
 dependencyManagement {
