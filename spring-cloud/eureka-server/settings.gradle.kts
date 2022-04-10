@@ -1,1 +1,1 @@
-rootProject.name = "eureka-server"
+rootProject.name = "gateway"
