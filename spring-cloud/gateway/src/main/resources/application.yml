@@ -20,6 +20,11 @@ ribbon.NFLoadBalancerPingInterval: 5
 
 spring.cloud.gateway.routes:
 
+  - id: swagger-ui
+    uri: lb://product-composite
+    predicates:
+      - Path=/swagger-ui/**,/swagger-resources/**,/v2/api-docs/**
+
   - id: product-composite
     uri: lb://product-composite
     predicates:
